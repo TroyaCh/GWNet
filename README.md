@@ -1,40 +1,84 @@
-# Graph WaveNet for Deep Spatial-Temporal Graph Modeling
+# Graph WaveNet for brain connectivity
 
-This is the original pytorch implementation of Graph WaveNet in the following paper: 
-[Graph WaveNet for Deep Spatial-Temporal Graph Modeling, IJCAI 2019] (https://arxiv.org/abs/1906.00121).  A nice improvement over GraphWavenet is presented by Shleifer et al. [paper](https://arxiv.org/abs/1912.07390) [code](https://github.com/sshleifer/Graph-WaveNet).
-
+<img src="https://github.com/simonvino/GraphWaveNet_brain_connectivity/blob/main/figures/GWN_for_brain_connectivity.png" width="800">
 
 
-<p align="center">
-  <img width="350" height="400" src=./fig/model.png>
-</p>
+This is the implementation of the Graph WaveNet model used in our paper:
+
+S. Wein , A. Schüller, A. M. Tome, W. M. Malloni, M. W. Greenlee, and E. W.
+Lang,
+[Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures](https://arxiv.org/abs/).
+
+The implementation is based on the [Graph WaveNet](https://github.com/nnzhan/Graph-WaveNet) proposed by:
+
+Z. Wu, S. Pan, G. Long, J. Jiang, C. Zhang, [Graph WaveNet for Deep Spatial-Temporal Graph Modeling](https://arxiv.org/abs/1906.00121), IJCAI 2019.
+
 
 ## Requirements
-- python 3
-- see `requirements.txt`
 
+- pytroch>=1.00
+- scipy>=0.19.0
+- numpy>=1.12.1
 
-## Data Preparation
-
-### Step1: Download METR-LA and PEMS-BAY data from [Google Drive](https://drive.google.com/open?id=10FOTa6HXPqX8Pf5WRoRwcFnW9BrNZEIX) or [Baidu Yun](https://pan.baidu.com/s/14Yy9isAIZYdU__OYEQGa_g) links provided by [DCRNN](https://github.com/liyaguang/DCRNN).
-
-### Step2: Process raw data 
+Also a conda *environment.yml* file is provided. The environment can be installed with:
 
 ```
-# Create data directories
-mkdir -p data/{METR-LA,PEMS-BAY}
+conda env create -f environment.yml
+```
 
-# METR-LA
-python generate_training_data.py --output_dir=data/METR-LA --traffic_df_filename=data/metr-la.h5
+## Run demo version
 
-# PEMS-BAY
-python generate_training_data.py --output_dir=data/PEMS-BAY --traffic_df_filename=data/pems-bay.h5
+A short demo version is included in this repository, which can serve as a template to process your own MRI data. Artificial fMRI data is provided in the directory ``` MRI_data/fMRI_sessions/ ``` and the artificial timecourses have the shape ``` (nodes,time) ```. 
+The adjacency matrix in form of the structural connectivity (SC) between brain regions can be stored in ``` MRI_data/SC_matrix/ ```. An artificial SC matrix with shape ``` (nodes,nodes) ``` is also provided in this demo version.
+
+The training samples can be generated from the subject session data by running: 
 
 ```
-## Train Commands
+python generate_samples.py --input_dir=./MRI_data/fMRI_sessions/ --output_dir=./MRI_data/training_samples
+```
+
+The model can then be trained by running:
 
 ```
-python train.py --gcn_bool --adjtype doubletransition --addaptadj  --randomadj
+python gwn_for_brain_connectivity_train.py --data ./MRI_data/training_samples --save_predictions True
+```
+
+<!---
+A Jupyter Notebook version is provided, which can be directly run in Google Colab with:
+
+> https://colab.research.google.com/github/simonvino/DCRNN_brain_connectivity/blob/main/gwn_for_brain_connectivity_colab_demo.ipynb
+--->
+
+
+## Data availability
+
+Preprocessed fMRI and DTI data from Human Connectome Project data is publicly available under: https://db.humanconnectome.org.
+
+A nice tutorial on white matter tracktography for creating a SC matrix is available under: https://osf.io/fkyht/. 
+
+## Citations
+
+If you apply this graph neural network model for MRI analysis, please cite the following paper: 
+
+```
+@misc{Wein2021_GNNS_bc,
+  title = {Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures},
+  author = {Wein, Simon and Schüller, Alina and Tomé, Ana and Malloni, Wilhelm and Greenlee, Mark and Lang, Elmar},
+  year = {2021},
+  journal = {arXiv:},
+  doi = {}
+}
+```
+
+And the model architecture was originally proposed by Wu et al.:
+
+```
+@inproceedings{Wu2019_GWN_traffic,
+  title={Graph WaveNet for Deep Spatial-Temporal Graph Modeling},
+  author={Wu, Zonghan and Pan, Shirui and Long, Guodong and Jiang, Jing and Zhang, Chengqi},
+  booktitle={Proceedings of the Twenty-Eighth International Joint Conference on Artificial Intelligence (IJCAI-19)},
+  year={2019}
+}
 ```
 
 

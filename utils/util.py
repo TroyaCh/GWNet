@@ -3,6 +3,8 @@ import numpy as np
 import os
 import scipy.sparse as sp
 import torch
+import logging
+import sys
 from scipy.sparse import linalg
 
 
@@ -121,8 +123,9 @@ def load_pickle(pickle_file):
         raise
     return pickle_data
 
-def load_adj(pkl_filename, adjtype):
-    sensor_ids, sensor_id_to_ind, adj_mx = load_pickle(pkl_filename)
+def load_adj(npy_filename, adjtype):
+    #sensor_ids, sensor_id_to_ind, adj_mx = load_pickle(pkl_filename)
+    adj_mx = np.load(npy_filename)
     if adjtype == "scalap":
         adj = [calculate_scaled_laplacian(adj_mx)]
     elif adjtype == "normlap":
@@ -138,7 +141,7 @@ def load_adj(pkl_filename, adjtype):
     else:
         error = 0
         assert error, "adj type not defined"
-    return sensor_ids, sensor_id_to_ind, adj
+    return adj
 
 
 def load_dataset(dataset_dir, batch_size, valid_batch_size= None, test_batch_size=None):
@@ -208,4 +211,44 @@ def metric(pred, real):
     rmse = masked_rmse(pred,real,0.0).item()
     return mae,mape,rmse
 
+
+def config_logging(log_dir, log_filename='info.log', level=logging.INFO):
+    # Add file handler and stdout handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s',
+                                  "%Y-%m-%d %H:%M")
+    # Create the log directory if necessary.
+    try:
+        os.makedirs(log_dir)
+    except OSError:
+        pass
+    file_handler = logging.FileHandler(os.path.join(log_dir, log_filename))
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(level=level)
+    # Add console handler.
+    console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s',
+                                          "%Y-%m-%d %H:%M")
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    console_handler.setLevel(level=level)
+    logging.basicConfig(handlers=[file_handler, console_handler], level=level)
+
+
+def get_logger(log_dir, name, log_filename='info.log', level=logging.INFO):
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    # Add file handler and stdout handler
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s',
+                                  "%Y-%m-%d %H:%M")
+    file_handler = logging.FileHandler(os.path.join(log_dir, log_filename))
+    file_handler.setFormatter(formatter)
+    # Add console handler.
+    console_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s',
+                                          "%Y-%m-%d %H:%M")
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    # Add google cloud log handler
+    logger.info('Log directory: %s', log_dir)
+    return logger
 

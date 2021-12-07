@@ -42,12 +42,14 @@ class gcn(nn.Module):
 
         h = torch.cat(out,dim=1)
         h = self.mlp(h)
-        h = F.dropout(h, self.dropout, training=self.training)
+        #h = F.dropout(h, self.dropout, training=self.training)
         return h
 
 
 class gwnet(nn.Module):
-    def __init__(self, device, num_nodes, dropout=0.3, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, in_dim=2,out_dim=12,residual_channels=32,dilation_channels=32,skip_channels=256,end_channels=512,kernel_size=2,blocks=4,layers=2):
+    def __init__(self, device, num_nodes, dropout=0, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, 
+                 in_dim=1, out_dim=30, residual_channels=32, dilation_channels=32, skip_channels=256, end_channels=512, 
+                 kernel_size=4, blocks=8, layers=2, walk_order=2):
         super(gwnet, self).__init__()
         self.dropout = dropout
         self.blocks = blocks
@@ -77,17 +79,12 @@ class gwnet(nn.Module):
             if aptinit is None:
                 if supports is None:
                     self.supports = []
-                self.nodevec1 = nn.Parameter(torch.randn(num_nodes, 10).to(device), requires_grad=True).to(device)
-                self.nodevec2 = nn.Parameter(torch.randn(10, num_nodes).to(device), requires_grad=True).to(device)
+                self.adapt_mx = nn.Parameter(torch.zeros(num_nodes, num_nodes).to(device), requires_grad=True).to(device)
                 self.supports_len +=1
             else:
                 if supports is None:
                     self.supports = []
-                m, p, n = torch.svd(aptinit)
-                initemb1 = torch.mm(m[:, :10], torch.diag(p[:10] ** 0.5))
-                initemb2 = torch.mm(torch.diag(p[:10] ** 0.5), n[:, :10].t())
-                self.nodevec1 = nn.Parameter(initemb1, requires_grad=True).to(device)
-                self.nodevec2 = nn.Parameter(initemb2, requires_grad=True).to(device)
+                self.adapt_mx = aptinit
                 self.supports_len += 1
 
 
@@ -120,7 +117,7 @@ class gwnet(nn.Module):
                 receptive_field += additional_scope
                 additional_scope *= 2
                 if self.gcn_bool:
-                    self.gconv.append(gcn(dilation_channels,residual_channels,dropout,support_len=self.supports_len))
+                    self.gconv.append(gcn(dilation_channels, residual_channels, dropout, support_len=self.supports_len, order=walk_order))
 
 
 
@@ -135,7 +132,7 @@ class gwnet(nn.Module):
                                     bias=True)
 
         self.receptive_field = receptive_field
-
+        print('Receptive field size: {}'.format(self.receptive_field))
 
 
     def forward(self, input):
@@ -150,7 +147,7 @@ class gwnet(nn.Module):
         # calculate the current adaptive adj matrix once per iteration
         new_supports = None
         if self.gcn_bool and self.addaptadj and self.supports is not None:
-            adp = F.softmax(F.relu(torch.mm(self.nodevec1, self.nodevec2)), dim=1)
+            adp = F.tanh(self.adapt_mx)/(self.adapt_mx.shape[0])
             new_supports = self.supports + [adp]
 
         # WaveNet layers
@@ -191,7 +188,7 @@ class gwnet(nn.Module):
                 if self.addaptadj:
                     x = self.gconv[i](x, new_supports)
                 else:
-                    x = self.gconv[i](x,self.supports)
+                    x = self.gconv[i](x, self.supports)
             else:
                 x = self.residual_convs[i](x)
 

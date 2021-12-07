@@ -1,14 +1,23 @@
 import torch.optim as optim
-from model import *
-import util
+from model.gwn_model import *
+import utils.util as util
 class trainer():
-    def __init__(self, scaler, in_dim, seq_length, num_nodes, nhid , dropout, lrate, wdecay, device, supports, gcn_bool, addaptadj, aptinit):
-        self.model = gwnet(device, num_nodes, dropout, supports=supports, gcn_bool=gcn_bool, addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16)
+    def __init__(self, scaler, supports, aptinit, gcn_bool=True, addaptadj=False, in_dim=1, seq_length=30, num_nodes=90, nhid=32, 
+                 kernel_size=4, blocks=12, layers=2, walk_order=2, dropout=0, lrate=0.001, lrate_step=10, wdecay=0.0001, device='cuda:0'):
+        
+        # Initialize model.
+        self.model = gwnet(device=device, num_nodes=num_nodes, dropout=dropout, supports=supports, gcn_bool=gcn_bool, 
+                           addaptadj=addaptadj, aptinit=aptinit, in_dim=in_dim, out_dim=seq_length, residual_channels=nhid, 
+                           dilation_channels=nhid, skip_channels=nhid * 8, end_channels=nhid * 16, kernel_size=kernel_size, 
+                           blocks=blocks, layers=layers, walk_order=walk_order)
+        
         self.model.to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate, weight_decay=wdecay)
         self.loss = util.masked_mae
         self.scaler = scaler
         self.clip = 5
+        # Add learning rate decay.
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=lrate_step, gamma=0.1)
 
     def train(self, input, real_val):
         self.model.train()
