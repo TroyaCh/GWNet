@@ -1,17 +1,17 @@
-# Graph WaveNet for brain connectivity
+# Graph WaveNet for brain network analysis
 
 <img src="https://github.com/simonvino/GraphWaveNet_brain_connectivity/blob/main/figures/GWN_for_brain_connectivity.png" width="800">
 
 
 This is the implementation of the Graph WaveNet model used in our manuscript:
 
-S. Wein , A. Schüller, A. M. Tome, W. M. Malloni, M. W. Greenlee, and E. W.
+> S. Wein , A. Schüller, A. M. Tome, W. M. Malloni, M. W. Greenlee, and E. W.
 Lang,
 [Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures](https://arxiv.org/abs/2112.04266).
 
 The implementation is based on the [Graph WaveNet](https://github.com/nnzhan/Graph-WaveNet) proposed by:
 
-Z. Wu, S. Pan, G. Long, J. Jiang, C. Zhang, [Graph WaveNet for Deep Spatial-Temporal Graph Modeling](https://arxiv.org/abs/1906.00121), IJCAI 2019.
+> Z. Wu, S. Pan, G. Long, J. Jiang, C. Zhang, [Graph WaveNet for Deep Spatial-Temporal Graph Modeling](https://arxiv.org/abs/1906.00121), IJCAI 2019.
 
 
 ## Requirements
