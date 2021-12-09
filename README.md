@@ -3,11 +3,11 @@
 <img src="https://github.com/simonvino/GraphWaveNet_brain_connectivity/blob/main/figures/GWN_for_brain_connectivity.png" width="800">
 
 
-This is the implementation of the Graph WaveNet model used in our paper:
+This is the implementation of the Graph WaveNet model used in our manuscript:
 
 S. Wein , A. Schüller, A. M. Tome, W. M. Malloni, M. W. Greenlee, and E. W.
 Lang,
-[Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures](https://arxiv.org/abs/).
+[Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures](https://arxiv.org/abs/2112.04266).
 
 The implementation is based on the [Graph WaveNet](https://github.com/nnzhan/Graph-WaveNet) proposed by:
 
@@ -43,11 +43,11 @@ The model can then be trained by running:
 python gwn_for_brain_connectivity_train.py --data ./MRI_data/training_samples --save_predictions True
 ```
 
-<!---
+
 A Jupyter Notebook version is provided, which can be directly run in Google Colab with:
 
-> https://colab.research.google.com/github/simonvino/DCRNN_brain_connectivity/blob/main/gwn_for_brain_connectivity_colab_demo.ipynb
---->
+> https://colab.research.google.com/github/simonvino/GraphWaveNet_brain_connectivity/blob/main/gwn_for_brain_connectivity_colab_demo.ipynb
+
 
 
 ## Data availability
@@ -58,15 +58,16 @@ A nice tutorial on white matter tracktography for creating a SC matrix is availa
 
 ## Citations
 
-If you apply this graph neural network model for MRI analysis, please cite the following paper: 
+Our arXiv manuscript can be cited as: 
 
 ```
-@misc{Wein2021_GNNS_bc,
-  title = {Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures},
-  author = {Wein, Simon and Schüller, Alina and Tomé, Ana and Malloni, Wilhelm and Greenlee, Mark and Lang, Elmar},
-  year = {2021},
-  journal = {arXiv:},
-  doi = {}
+@misc{Wein2021GNNs_bc,
+      title={Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures}, 
+      author={Simon Wein and Alina Schüller and Ana Maria Tomé and Wilhelm M. Malloni and Mark W. Greenlee and Elmar W. Lang},
+      year={2021},
+      eprint={2112.04266},
+      archivePrefix={arXiv},
+      primaryClass={q-bio.NC}
 }
 ```
 
