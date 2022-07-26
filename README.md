@@ -7,7 +7,7 @@ This is the implementation of the Graph WaveNet model used in our manuscript:
 
 > S. Wein , A. Schüller, A. M. Tome, W. M. Malloni, M. W. Greenlee, and E. W.
 Lang,
-[Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures](https://arxiv.org/abs/2112.04266).
+[Forecasting brain activity based on models of spatiotemporal brain dynamics: A comparison of graph neural network architectures](https://direct.mit.edu/netn/article/6/3/665/111069/Forecasting-brain-activity-based-on-models-of), Network Neuroscience 6 (3): 665–701 (2022).
 
 The implementation is based on the [Graph WaveNet](https://github.com/nnzhan/Graph-WaveNet) proposed by:
 
@@ -58,16 +58,20 @@ A nice tutorial on white matter tracktography for creating a SC matrix is availa
 
 ## Citations
 
-Our arXiv manuscript can be cited as: 
+If you considered this GWN architecture for brain connectivity analysis as useful, please cite our manuscript as: 
 
 ```
-@misc{Wein2021GNNs_bc,
-      title={Modeling Spatio-Temporal Dynamics in Brain Networks: A Comparison of Graph Neural Network Architectures}, 
-      author={Simon Wein and Alina Schüller and Ana Maria Tomé and Wilhelm M. Malloni and Mark W. Greenlee and Elmar W. Lang},
-      year={2021},
-      eprint={2112.04266},
-      archivePrefix={arXiv},
-      primaryClass={q-bio.NC}
+@article{Wein2022,
+    author = {Wein, S. and Schüller, A. and Tomé, A. M. and Malloni, W. M. and Greenlee, M. W. and Lang, E. W.},
+    title = "{Forecasting brain activity based on models of spatiotemporal brain dynamics: A comparison of graph neural network architectures}",
+    journal = {Network Neuroscience},
+    volume = {6},
+    number = {3},
+    pages = {665-701},
+    year = {2022},
+    month = {07},
+    doi = {10.1162/netn_a_00252},
+    url = {https://doi.org/10.1162/netn\_a\_00252},
 }
 ```
 
