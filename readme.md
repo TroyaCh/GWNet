@@ -2,7 +2,7 @@
 
 This work focus on sensor level brain connectivity prediction using EEG data. It provide the prediction in 2 steps. 1st Spatial and temporal graph neural network (Graph Wavenet) forecastes the 64 EEG channels. In the 2nd step this 64 chennals use to calculate the brain connectivity utilizing the imaginary part of coherence.  
 
-![alt text](http://url/to/img.png)
+![alt text](https://github.com/TroyaCh/GWNet/blob/main/image/Architecture.png)
 
 ## Requirements
 a conda environment.yml file is provided. The environment can be installed with:
@@ -28,4 +28,4 @@ python gwn_brain_conn_train.py --config ./config/config_256_05.yaml
 ```
 
 ## Acknowledgement
-the model architecture was originally proposed by [Wu et al.](https://arxiv.org/abs/1906.00121) [pytorch implementation] (https://github.com/nnzhan/Graph-WaveNet)
+the model architecture was originally proposed by [Wu et al.](https://arxiv.org/abs/1906.00121).The  [pytorch-implementation] (https://github.com/nnzhan/Graph-WaveNet)
