@@ -3,7 +3,7 @@ data: GraphWaveNet_brain_connectivity/data/training_samples_256_2s_025s_05
 adjdata_nbh: GraphWaveNet_brain_connectivity_v2/data/adj_mx_nbh/norm_spatial_conn_matrix.npy
 adjtype: transition
 gcn_bool: true
-adj_mtx_bool: true
+adj_mtx_bool: false
 aptonly: false
 addaptadj: false
 randomadj: true

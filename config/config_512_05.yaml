@@ -3,7 +3,7 @@ data: GraphWaveNet_brain_connectivity/data/training_samples_512_05
 adjdata_nbh: GraphWaveNet_brain_connectivity/data/adj_mx/norm_spatial_conn_matrix.npy
 adjtype: symnadj
 gcn_bool: true
-adj_mtx_bool: true
+adj_mtx_bool: false
 aptonly: false
 addaptadj: false
 randomadj: true
