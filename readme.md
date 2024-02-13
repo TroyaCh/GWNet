@@ -1,6 +1,6 @@
 # Brain connectivity prediction with Spatial and temporal graph neural network
 
-This work focus on sensor level brain connectivity prediction using EEG data. It provide the prediction in 2 steps. 1st Spatial and temporal graph neural network (Graph Wavenet) forecastes the 64 EEG channels. In the 2nd step this 64 chennals use to calculate the brain connectivity utilizing the imaginary part of coherence.  
+This work focus on sensor level brain connectivity prediction using EEG data. It provides the prediction in 2 steps. 1st Spatial and temporal graph neural network (Graph Wavenet) forecasts the 64 EEG channels. In the 2nd step this 64 chennals used to calculate the brain connectivity utilizing the imaginary part of coherence method.  
 
 ![alt text](https://github.com/TroyaCh/GWNet/blob/main/image/Architecture.png)
 
