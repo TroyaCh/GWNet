@@ -12,3 +12,4 @@ gwn_for_brain_connectivity_train.py
 data_preprocess.py
 info.txt
 data/
+test_chk.py
