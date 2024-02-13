@@ -28,4 +28,4 @@ python gwn_brain_conn_train.py --config ./config/config_256_05.yaml
 ```
 
 ## Acknowledgement
-the model architecture was originally proposed by [Wu et al.](https://arxiv.org/abs/1906.00121).The  [pytorch-implementation] (https://github.com/nnzhan/Graph-WaveNet)
+the model architecture was originally proposed by [Wu et al.](https://arxiv.org/abs/1906.00121). For code information see [pytorch implementation](https://github.com/nnzhan/Graph-WaveNet)
