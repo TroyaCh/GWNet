@@ -13,8 +13,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--checkpoint_dir',type=str,default=None,help='directory where the model is stored in')
 parser.add_argument('--checkpoint_model',type=str,default=None,help='name of model to restore (.pth)')
 parser.add_argument('--device',type=str,default='cuda:0',help='')
-parser.add_argument('--data',type=str,default='./MRI_data/training_samples',help='data path')
-parser.add_argument('--adjdata',type=str,default='./MRI_data/SC_matrix/artificial_SC_matrix.npy',help='adj data path')
+parser.add_argument('--data',type=str,default='./data/training_samples_30_05_1s',help='data path')
+parser.add_argument('--adjdata',type=str,default='./data/adj_mx/norm_spatial_conn_matrix.npy',help='adj data path')
 parser.add_argument('--adjtype',type=str,default='transition',help='adj type')
 parser.add_argument('--gcn_bool',type=bool,default=True,help='whether to add graph convolution layer')
 parser.add_argument('--aptonly',type=bool,default=False,help='whether only adaptive adj')
@@ -27,7 +27,7 @@ parser.add_argument('--blocks',type=int,default=8,help='temporal convolution blo
 parser.add_argument('--layers',type=int,default=2,help='temporal convolution layers')
 parser.add_argument('--walk_order',type=int,default=2,help='walk order on graph')
 parser.add_argument('--in_dim',type=int,default=1,help='inputs dimension')
-parser.add_argument('--num_nodes',type=int,default=90,help='number of nodes')
+parser.add_argument('--num_nodes',type=int,default=64,help='number of nodes')
 parser.add_argument('--batch_size',type=int,default=64,help='batch size')
 parser.add_argument('--learning_rate',type=float,default=0.001,help='learning rate')
 parser.add_argument('--learning_rate_step',type=float,default=10,help='learning rate decay step')
@@ -78,6 +78,8 @@ def main():
 
     dataloader = util.load_dataset(args.data, args.batch_size, args.batch_size, args.batch_size)
     scaler = dataloader['scaler']
+    min_max_scaler = dataloader['min_max_scaler']
+
     outputs = []
     realy = torch.Tensor(dataloader['y_test']).to(device)
     realy = realy.transpose(1,3)[:,0,:,:]
@@ -96,9 +98,11 @@ def main():
     amae = []
     amape = []
     armse = []
+    print(yhat.shape)
     for i in range(args.seq_length):
-        pred = scaler.inverse_transform(yhat[:,:,i])
+        pred = scaler.inverse_transform_3d(min_max_scaler.inverse_transform_3d(yhat[:,:,i]))
         real = realy[:,:,i]
+        
         metrics = util.metric(pred,real)
         log = 'Evaluate best model on test data for horizon {:d}, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
         logger.info(log.format(i+1, metrics[0], metrics[1], metrics[2]))
@@ -109,14 +113,18 @@ def main():
     log = 'On average over {} horizons, Test MAE: {:.4f}, Test MAPE: {:.4f}, Test RMSE: {:.4f}'
     logger.info(log.format(args.seq_length, np.mean(amae),np.mean(amape),np.mean(armse)))
     
+    # Recover original scaling.
+    yhat= scaler.inverse_transform(min_max_scaler.inverse_transform(yhat.transpose(1,2).unsqueeze(-1)))
     # Save model outputs.
-    yhat_np = np.array(yhat.cpu()).transpose(2,0,1)  # Convert to numpy arrray and reshape to (horizon, samples, NROIs)
+    yhat_np = np.array(yhat.cpu().squeeze(-1).transpose(0,1)) 
+    #yhat_np = np.array(yhat.cpu()).transpose(2,0,1)  # Convert to numpy arrray and reshape to (horizon, samples, NROIs)
+    
     realy_np = np.array(realy.cpu()).transpose(2,0,1)
     
     if args.save_predictions:
         print('Save outputs in: ', args.checkpoint_dir)
         np.savez(os.path.join(args.checkpoint_dir, args.output_name), 
-                 predictions=scaler.inverse_transform(yhat_np),  # Recover original scaling.
+                 predictions=yhat_np,  
                  groundtruth=realy_np)  
         # Plot predictions and save plots.
         plot_predictions(args.checkpoint_dir, args.data, output_name=args.output_name)

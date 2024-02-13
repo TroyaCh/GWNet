@@ -2,3 +2,13 @@ results/
 other_stuff/
 **/.ipynb_checkpoints/
 *.pyc
+Untitled.ipynb
+test256/
+test512/
+model1/
+utils1/
+gwn_for_brain_connectivity_test.py
+gwn_for_brain_connectivity_train.py
+data_preprocess.py
+info.txt
+data/

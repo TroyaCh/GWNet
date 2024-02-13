@@ -49,6 +49,31 @@ class DataLoader(object):
 
         return _wrapper()
 
+class MinMaxScaler():
+    """
+    Min-Max normalization for input data
+    """
+
+    def __init__(self, min_val, max_val):
+        self.min_val = min_val
+        self.max_val = max_val
+
+    def transform(self, data):
+        return (data - self.min_val) / (self.max_val - self.min_val)
+
+    def inverse_transform(self, data):
+        min_val=torch.from_numpy(self.min_val).to('cuda')
+        max_val= torch.from_numpy(self.max_val).to('cuda')
+        return data * (max_val - min_val) + min_val
+    
+    def inverse_transform_3d(self, data):
+        min_val=torch.from_numpy(self.min_val).to('cuda')
+        min_reshaped = min_val.view(1, 64)
+        max_val= torch.from_numpy(self.max_val).to('cuda')
+        max_reshaped = max_val.view(1, 64)
+
+        return data * (max_reshaped - min_reshaped) + min_reshaped
+
 class StandardScaler():
     """
     Standard the input
@@ -62,7 +87,21 @@ class StandardScaler():
         return (data - self.mean) / self.std
 
     def inverse_transform(self, data):
-        return (data * self.std) + self.mean
+        mean= torch.from_numpy(self.mean).to('cuda')
+        #print(mean.shape)
+        std= torch.from_numpy(self.std).to('cuda')
+        #print(std.shape)
+        return (data * std) + mean
+    
+    def inverse_transform_3d(self, data):
+        #print(data.shape)
+        mean= torch.from_numpy(self.mean).to('cuda')
+        mean_reshaped = mean.view(1, 64)
+        #print(mean_reshaped.shape)
+        std= torch.from_numpy(self.std).to('cuda')
+        std_reshaped = std.view(1, 64)
+        #print(std_reshaped.shape)
+        return (data * std_reshaped) + mean_reshaped
 
 
 
@@ -132,7 +171,7 @@ def load_adj(npy_filename, adjtype):
         adj = [calculate_normalized_laplacian(adj_mx).astype(np.float32).todense()]
     elif adjtype == "symnadj":
         adj = [sym_adj(adj_mx)]
-    elif adjtype == "transition":
+    elif adjtype == "transition": #***
         adj = [asym_adj(adj_mx)]
     elif adjtype == "doubletransition":
         adj = [asym_adj(adj_mx), asym_adj(np.transpose(adj_mx))]
@@ -150,14 +189,31 @@ def load_dataset(dataset_dir, batch_size, valid_batch_size= None, test_batch_siz
         cat_data = np.load(os.path.join(dataset_dir, category + '.npz'))
         data['x_' + category] = cat_data['x']
         data['y_' + category] = cat_data['y']
-    scaler = StandardScaler(mean=data['x_train'][..., 0].mean(), std=data['x_train'][..., 0].std())
+    scaler = StandardScaler(
+           mean=data['x_train'].mean(axis=(0, 1, 3), keepdims=True),
+           std=data['x_train'].std(axis=(0, 1, 3), keepdims=True)
+             ) 
     # Data format
     for category in ['train', 'val', 'test']:
-        data['x_' + category][..., 0] = scaler.transform(data['x_' + category][..., 0])
+        data['x_' + category]= scaler.transform(data['x_' + category])
+        if category =="train":
+            min_max_scaler = MinMaxScaler(
+                min_val=data['x_' + category].min(axis=(0, 1, 3), keepdims=True),
+                max_val=data['x_' + category].max(axis=(0, 1, 3), keepdims=True)
+            )
+        data['x_' + category] = min_max_scaler.transform(data['x_' + category])
     data['train_loader'] = DataLoader(data['x_train'], data['y_train'], batch_size)
     data['val_loader'] = DataLoader(data['x_val'], data['y_val'], valid_batch_size)
     data['test_loader'] = DataLoader(data['x_test'], data['y_test'], test_batch_size)
     data['scaler'] = scaler
+    data['min_max_scaler']=min_max_scaler
+
+    # if distributed:
+    #     # Create DistributedSampler for training data
+    #     train_sampler = torch.utils.data.distributed.DistributedSampler(data['train_loader'].dataset)
+    #     # Create DataLoader with the DistributedSampler
+    #     data['train_loader'] = DataLoader(data['train_loader'].dataset, batch_size=batch_size, sampler=train_sampler)
+    #     data['train_sampler'] = train_sampler
     return data
 
 def masked_mse(preds, labels, null_val=np.nan):
@@ -191,7 +247,7 @@ def masked_mae(preds, labels, null_val=np.nan):
     return torch.mean(loss)
 
 
-def masked_mape(preds, labels, null_val=np.nan):
+def masked_smape(preds, labels, null_val=np.nan):
     if np.isnan(null_val):
         mask = ~torch.isnan(labels)
     else:
@@ -199,7 +255,8 @@ def masked_mape(preds, labels, null_val=np.nan):
     mask = mask.float()
     mask /=  torch.mean((mask))
     mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    loss = torch.abs(preds-labels)/labels
+
+    loss = 2 * torch.abs(preds - labels) / (torch.abs(preds) + torch.abs(labels))
     loss = loss * mask
     loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
     return torch.mean(loss)
@@ -207,9 +264,9 @@ def masked_mape(preds, labels, null_val=np.nan):
 
 def metric(pred, real):
     mae = masked_mae(pred,real,0.0).item()
-    mape = masked_mape(pred,real,0.0).item()
+    smape = masked_smape(pred,real,0.0).item()
     rmse = masked_rmse(pred,real,0.0).item()
-    return mae,mape,rmse
+    return mae,smape,rmse
 
 
 def config_logging(log_dir, log_filename='info.log', level=logging.INFO):

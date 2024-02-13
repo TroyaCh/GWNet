@@ -1,4 +1,4 @@
-name: pytorch
+name: GWNet
 channels:
   - pytorch
   - conda-forge
@@ -28,7 +28,7 @@ dependencies:
   - click=7.1.2=pyhd3eb1b0_0
   - coverage=5.5=py38h27cfd23_2
   - cryptography=3.4.7=py38hd23ed53_0
-  - cudatoolkit=11.0.221=h6bb024c_0
+  - cudatoolkit=10.2 
   - cycler=0.10.0=py_2
   - cython=0.29.23=py38h2531618_0
   - dbus=1.13.18=hb2f20db_0
@@ -50,7 +50,7 @@ dependencies:
   - importlib_metadata=3.1.1=hd8ed1ab_0
   - intel-openmp=2020.2=254
   - ipykernel=5.3.4=py38h81c977d_1
-  - ipython=7.19.0=py38h81c977d_0
+  - ipython=7.19.0
   - ipython_genutils=0.2.0=py_1
   - jedi=0.17.2=py38h578d9bd_1
   - jinja2=2.11.2=pyh9f0ad1d_0
@@ -136,7 +136,7 @@ dependencies:
   - python=3.8.5=h7579374_1
   - python-dateutil=2.8.1=py_0
   - python_abi=3.8=1_cp38
-  - pytorch=1.7.0=py3.8_cuda11.0.221_cudnn8.0.3_0
+  - pytorch=1.7.0
   - pytz=2020.4=pyhd8ed1ab_0
   - pyyaml=5.4.1=py38h27cfd23_1
   - pyzmq=20.0.0=py38h1d1b12f_1
@@ -161,7 +161,7 @@ dependencies:
   - testpath=0.4.4=py_0
   - tk=8.6.10=hbc83047_0
   - torchaudio=0.7.0=py38
-  - torchvision=0.8.1=py38_cu110
+  - torchvision=0.8.1
   - tornado=6.1=py38h25fe258_0
   - traitlets=5.0.5=py_0
   - typing_extensions=3.7.4.3=py_0
@@ -180,5 +180,5 @@ dependencies:
   - zstd=1.4.5=h9ceee32_0
   - pip:
     - jupyter-http-over-ws==0.0.8
-prefix: /home/aglang/anaconda3/envs/pytorch
+prefix: /home/aglang/anaconda3/envs/GWNet
 

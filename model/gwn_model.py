@@ -47,7 +47,7 @@ class gcn(nn.Module):
 
 
 class gwnet(nn.Module):
-    def __init__(self, device, num_nodes, dropout=0, supports=None, gcn_bool=True, addaptadj=True, aptinit=None, 
+    def __init__(self, device, num_nodes, dropout=0, supports=None, supports_nbh = None, gcn_bool=True, adj_mtx_bool= True, addaptadj=True, aptinit=None, 
                  in_dim=1, out_dim=30, residual_channels=32, dilation_channels=32, skip_channels=256, end_channels=512, 
                  kernel_size=4, blocks=8, layers=2, walk_order=2):
         super(gwnet, self).__init__()
@@ -55,12 +55,15 @@ class gwnet(nn.Module):
         self.blocks = blocks
         self.layers = layers
         self.gcn_bool = gcn_bool
+        self.adj_mtx_bool = adj_mtx_bool
         self.addaptadj = addaptadj
 
         self.filter_convs = nn.ModuleList()
         self.gate_convs = nn.ModuleList()
         self.residual_convs = nn.ModuleList()
         self.skip_convs = nn.ModuleList()
+        self.filter_convs1 = nn.ModuleList()
+        self.gate_convs1 = nn.ModuleList()
         self.bn = nn.ModuleList()
         self.gconv = nn.ModuleList()
 
@@ -68,12 +71,17 @@ class gwnet(nn.Module):
                                     out_channels=residual_channels,
                                     kernel_size=(1,1))
         self.supports = supports
-
+        #self.supports2 = supports2
+        self.supports_nbh = supports_nbh
         receptive_field = 1
 
         self.supports_len = 0
-        if supports is not None:
+        self.supports_len2 = 0
+        self.supports_nbh_len = 0
+        if supports and supports_nbh is not None:
             self.supports_len += len(supports)
+            #self.supports_len2 += len(supports2)
+            self.supports_nbh_len +=len(supports_nbh)
 
         if gcn_bool and addaptadj:
             if aptinit is None:
@@ -86,8 +94,6 @@ class gwnet(nn.Module):
                     self.supports = []
                 self.adapt_mx = aptinit
                 self.supports_len += 1
-
-
 
 
         for b in range(blocks):
@@ -117,9 +123,12 @@ class gwnet(nn.Module):
                 receptive_field += additional_scope
                 additional_scope *= 2
                 if self.gcn_bool:
-                    self.gconv.append(gcn(dilation_channels, residual_channels, dropout, support_len=self.supports_len, order=walk_order))
+                    if self.adj_mtx_bool:
+                        self.gconv.append(gcn(dilation_channels, residual_channels, dropout, support_len=self.supports_len, order=walk_order))
+                    #self.gconv.append(gcn(dilation_channels, residual_channels, dropout, support_len= self.supports_len2, order=walk_order))
 
-
+                    self.gconv.append(gcn(dilation_channels, residual_channels, dropout, support_len= self.supports_nbh_len, order=walk_order))
+                
 
         self.end_conv_1 = nn.Conv2d(in_channels=skip_channels,
                                   out_channels=end_channels,
@@ -149,7 +158,7 @@ class gwnet(nn.Module):
         if self.gcn_bool and self.addaptadj and self.supports is not None:
             adp = F.tanh(self.adapt_mx)/(self.adapt_mx.shape[0])
             new_supports = self.supports + [adp]
-
+        
         # WaveNet layers
         for i in range(self.blocks * self.layers):
 
@@ -169,8 +178,10 @@ class gwnet(nn.Module):
             # dilated convolution
             filter = self.filter_convs[i](residual)
             filter = torch.tanh(filter)
+            #print('f', filter.shape)
             gate = self.gate_convs[i](residual)
             gate = torch.sigmoid(gate)
+            #print('g', gate.shape)
             x = filter * gate
 
             # parametrized skip connection
@@ -188,18 +199,33 @@ class gwnet(nn.Module):
                 if self.addaptadj:
                     x = self.gconv[i](x, new_supports)
                 else:
-                    x = self.gconv[i](x, self.supports)
+                    if self.adj_mtx_bool:
+                        tcn= x
+                        f1 = self.gconv[i](tcn, self.supports)
+                        #print('f1',f1.shape)
+                        #f2 = self.gconv[i](tcn, self.supports2)
+                        f3 = self.gconv[i](tcn, self.supports_nbh)
+                        #print('f2',f2.shape)
+                        x = f1+f3
+                        #print('x', x.shape)
+                        # x = F.leaky_relu(x)
+                    else:     
+                        x = self.gconv[i](x, self.supports_nbh)
             else:
-                x = self.residual_convs[i](x)
+                x = self.residual_convs[i](x)  
 
             x = x + residual[:, :, :, -x.size(3):]
 
 
             x = self.bn[i](x)
+            #print('lastbn',x.shape)
+            
+            #print(i)
 
-        x = F.relu(skip)
-        x = F.relu(self.end_conv_1(x))
+        x = F.leaky_relu(skip)
+        x = F.leaky_relu(self.end_conv_1(x))
         x = self.end_conv_2(x)
+        #print('lastcon',x.shape)
         return x
 
 

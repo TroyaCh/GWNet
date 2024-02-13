@@ -1,65 +1,67 @@
 import torch
 import numpy as np
-import argparse
 import time
 import os
 import utils.util as util
 import matplotlib.pyplot as plt
 from utils.plot_functions import plot_predictions
 from model.engine import trainer
+import yaml
+import argparse
+import torch.distributed as dist
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--device',type=str,default='cuda:0',help='')
-parser.add_argument('--data',type=str,default='./data/training_samples_30_05_1s',help='data path')
-parser.add_argument('--adjdata',type=str,default='./data/adj_mx/norm_spatial_conn_matrix.npy',help='adj data path')
-parser.add_argument('--adjtype',type=str,default='symnadj',help='adj type')
-parser.add_argument('--gcn_bool',type=bool,default=True,help='whether to add graph convolution layer')
-parser.add_argument('--aptonly',type=bool,default=False,help='whether only adaptive adj')
-parser.add_argument('--addaptadj',type=bool,default=False,help='whether add adaptive adj')
-parser.add_argument('--randomadj',type=bool,default=True,help='whether random initialize adaptive adj')
-parser.add_argument('--seq_length',type=int,default=30,help='length of predicted sequence')
-parser.add_argument('--nhid',type=int,default=32,help='number of channels')
-parser.add_argument('--kernel_size',type=int,default=4,help='kernel size')
-parser.add_argument('--blocks',type=int,default=8,help='temporal convolution blocks')
-parser.add_argument('--layers',type=int,default=2,help='temporal convolution layers')
-parser.add_argument('--walk_order',type=int,default=2,help='walk order on graph')
-parser.add_argument('--in_dim',type=int,default=1,help='inputs dimension')
-parser.add_argument('--num_nodes',type=int,default=64,help='number of nodes')
-parser.add_argument('--batch_size',type=int,default=30,help='batch size')
-parser.add_argument('--learning_rate',type=float,default=0.001,help='learning rate')
-parser.add_argument('--learning_rate_step',type=float,default=10,help='learning rate decay step')
-parser.add_argument('--dropout',type=float,default=0.3,help='dropout rate')
-parser.add_argument('--weight_decay',type=float,default=0.0001,help='weight decay rate')
-parser.add_argument('--epochs',type=int,default=5,help='')
-parser.add_argument('--print_every',type=int,default=50,help='')
-#parser.add_argument('--seed',type=int,default=99,help='random seed')
-parser.add_argument('--save_dir',type=str,default=None,help='directory for saving logs and weights')
-parser.add_argument('--expid',type=int,default=1,help='experiment id')
-parser.add_argument('--save_predictions',type=bool,default=True,help='save model outputs')
-parser.add_argument('--output_name',type=str,default='outputs',help='name of model outputs')
+parser.add_argument('--config',type=str,help='config path')
+args_ = parser.parse_args()
 
+config_file_path = args_.config
 
-args = parser.parse_args()
+with open (config_file_path,'r') as config_file:
+    config = yaml.safe_load(config_file)
 
+# Create an argparse Namespace with the loaded parameters
+args = argparse.Namespace(**config)
+# def setup(rank, world_size):
+#     #initialize the process group
+#     dist.init_process_group("nccl", rank= rank, world_size=world_size)
 
 def main():
     #set seed
     #torch.manual_seed(args.seed)
     #np.random.seed(args.seed)
     #load data
+    
     device = torch.device(args.device)
-    #adj_mx = util.load_adj(args.adjdata, args.adjtype)
-    adj_mx = util.load_adj(args.adjdata, args.adjtype)
+    adj_mx_train = util.load_adj(args.train_support, args.adjtype) # ssymn adj or asymatric adj
+    adj_mx_val = util.load_adj(args.val_support, args.adjtype)
+    adj_mx_test = util.load_adj(args.test_support, args.adjtype)
+
+    nbh_adj_mx = util.load_adj(args.adjdata_nbh, args.adjtype) # neighbour info
+
     if args.save_dir == None:  # Create directory for outputs if  not specified.
-        args.save_dir = './results/GWN_gcn{}_{}_nhid{}_lr{}_{}/'.format(args.gcn_bool, args.walk_order, args.nhid,
+        args.save_dir = './results/GWN_gcn{}_nhid{}_lr{}_{}/'.format(args.gcn_bool, args.nhid,
                                                                     args.learning_rate, time.strftime('%m%d%H%M%S'))
     if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
     dataloader = util.load_dataset(args.data, args.batch_size, args.batch_size, args.batch_size)
-    scaler = dataloader['scaler']
+    scaler = dataloader['scaler']# mean, std initialized object
     min_max_scaler = dataloader['min_max_scaler']
-    supports = [torch.tensor(i).to(device) for i in adj_mx]
+    # if torch.cuda.device_count() > 1:
+    #     print("Let's use", torch.cuda.device_count(), "GPUs!")
+
+    # supports_train = [torch.tensor(i).to(device) for i in adj_mx_train]
+    # supports_val = [torch.tensor(i).to(device) for i in adj_mx_val]
+    # supports_test = [torch.tensor(i).to(device) for i in adj_mx_test]
+
+    # supports_nbh =[torch.tensor(i, dtype=torch.float32).to(device) for i in nbh_adj_mx]
+
+    supports_train = [torch.tensor(i, dtype=torch.float32).to(device) for i in adj_mx_train]
+    supports_val = [torch.tensor(i, dtype=torch.float32).to(device) for i in adj_mx_val]
+    supports_test = [torch.tensor(i, dtype=torch.float32).to(device) for i in adj_mx_test]
+
+    supports_nbh =[torch.tensor(i).to(device) for i in nbh_adj_mx]
+  
     logger = util.get_logger(args.save_dir, __name__, 'info.log', level='INFO')
 
     logger.info(args)
@@ -73,14 +75,25 @@ def main():
         supports = None
 
 
-    engine = trainer(scaler=scaler, min_max_scaler= min_max_scaler ,supports=supports, aptinit=adjinit, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, in_dim=args.in_dim, 
+    train_engine = trainer(scaler=scaler,min_max_scaler=min_max_scaler, supports=supports_train, supports_nbh = supports_nbh, aptinit=adjinit, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, in_dim=args.in_dim, 
                      seq_length=args.seq_length, num_nodes=args.num_nodes, nhid=args.nhid, kernel_size=args.kernel_size, blocks=args.blocks, 
                      layers=args.layers, walk_order=args.walk_order, dropout=args.dropout, lrate=args.learning_rate, 
                      lrate_step=args.learning_rate_step, wdecay=args.weight_decay, device=device)
     
-    engine.print_model_summary()
+    val_engine = trainer(scaler=scaler, min_max_scaler=min_max_scaler,supports=supports_val, supports_nbh = supports_nbh, aptinit=adjinit, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, in_dim=args.in_dim, 
+                     seq_length=args.seq_length, num_nodes=args.num_nodes, nhid=args.nhid, kernel_size=args.kernel_size, blocks=args.blocks, 
+                     layers=args.layers, walk_order=args.walk_order,dropout=args.dropout, lrate=args.learning_rate, 
+                     lrate_step=args.learning_rate_step, wdecay=args.weight_decay, device=device)
+    
+    test_engine = trainer(scaler=scaler, min_max_scaler=min_max_scaler,supports=supports_test, supports_nbh = supports_nbh, aptinit=adjinit, gcn_bool=args.gcn_bool, addaptadj=args.addaptadj, in_dim=args.in_dim, 
+                     seq_length=args.seq_length, num_nodes=args.num_nodes, nhid=args.nhid, kernel_size=args.kernel_size, blocks=args.blocks, 
+                     layers=args.layers, walk_order=args.walk_order, dropout=args.dropout, lrate=args.learning_rate, 
+                     lrate_step=args.learning_rate_step, wdecay=args.weight_decay, device=device)
+    
+    # Print the model summary
+    train_engine.print_model_summary()
 
-     # Training.
+    # Training.
     print("start training...",flush=True)
     his_loss =[]
     val_time = []
@@ -100,7 +113,7 @@ def main():
         train_smape = []
         train_rmse = []
         t1 = time.time()
-        dataloader['train_loader']
+        dataloader['train_loader'].shuffle()
         for iter, (x, y) in enumerate(dataloader['train_loader'].get_iterator()):
             trainx = torch.Tensor(x).to(device)
             #print("trainx",trainx.shape) #[64, 30, 90, 1]
@@ -108,16 +121,17 @@ def main():
             trainy = torch.Tensor(y).to(device)
             #print(trainy.shape)
             trainy = trainy.transpose(1, 3)
-            metrics = engine.train(trainx, trainy[:,0,:,:])
+            metrics = train_engine.train(trainx, trainy[:,0,:,:])
             train_loss.append(metrics[0])
             train_smape.append(metrics[1])
             train_rmse.append(metrics[2])
             if iter % args.print_every == 0 :
                 log = 'Iter: {:03d}, Train Loss: {:.4f}, Train SMAPE: {:.4f}, Train RMSE: {:.4f}, Lr: {:.6f}'
-                logger.info(log.format(iter, train_loss[-1], train_smape[-1], train_rmse[-1], engine.optimizer.param_groups[0]['lr']))
+                logger.info(log.format(iter, train_loss[-1], train_smape[-1], train_rmse[-1], train_engine.optimizer.param_groups[0]['lr']))
+                torch.save(train_engine.model.state_dict(), args.save_dir+"_epoch_"+str(i)+".pth")
         t2 = time.time()
         train_time.append(t2-t1)
-        engine.scheduler.step()
+        train_engine.scheduler.step()
 
         # Validation.
         valid_loss = []
@@ -131,7 +145,8 @@ def main():
             testx = testx.transpose(1, 3)
             testy = torch.Tensor(y).to(device)
             testy = testy.transpose(1, 3)
-            metrics = engine.eval(testx, testy[:,0,:,:])
+            val_engine.model.load_state_dict(torch.load(args.save_dir+"_epoch_"+str(i)+".pth")) 
+            metrics = val_engine.eval(testx, testy[:,0,:,:])
             valid_loss.append(metrics[0])
             valid_smape.append(metrics[1])
             valid_rmse.append(metrics[2])
@@ -157,15 +172,15 @@ def main():
 
 
         log = 'Epoch: {:03d}, Train Loss: {:.4f}, Train SMAPE: {:.4f}, Train RMSE: {:.4f}, Valid Loss: {:.4f}, Valid SMAPE: {:.4f}, Valid RMSE: {:.4f}, Lr: {:.6f}, Training Time: {:.4f} min/epoch'
-        logger.info(log.format(i, mtrain_loss, mtrain_smape, mtrain_rmse, mvalid_loss, mvalid_smape, mvalid_rmse, engine.optimizer.param_groups[0]['lr'], (t2 - t1)/60))
-        torch.save(engine.model.state_dict(), args.save_dir+"_epoch_"+str(i)+"_"+str(round(mvalid_loss,4))+".pth")
+        logger.info(log.format(i, mtrain_loss, mtrain_smape, mtrain_rmse, mvalid_loss, mvalid_smape, mvalid_rmse, train_engine.optimizer.param_groups[0]['lr'], (t2 - t1)/60))
+        torch.save(train_engine.model.state_dict(), args.save_dir+"_epoch_"+str(i)+"_"+str(round(mvalid_loss,4))+".pth")
     logger.info("Average Training Time: {:.4f} min/epoch".format(np.mean(train_time)/60))
     logger.info("Average Inference Time: {:.4f} secs".format(np.mean(val_time)))
     
 
     # Testing.
     bestid = np.argmin(his_loss)
-    engine.model.load_state_dict(torch.load(args.save_dir+"_epoch_"+str(bestid+1)+"_"+str(round(his_loss[bestid],4))+".pth"))
+    test_engine.model.load_state_dict(torch.load(args.save_dir+"_epoch_"+str(bestid+1)+"_"+str(round(his_loss[bestid],4))+".pth"))
 
     outputs = []
     realy = torch.Tensor(dataloader['y_test']).to(device)
@@ -175,7 +190,7 @@ def main():
         testx = torch.Tensor(x).to(device)
         testx = testx.transpose(1,3)
         with torch.no_grad():
-            preds = engine.model(testx).transpose(1,3)
+            preds = test_engine.model(testx).transpose(1,3)
         outputs.append(preds.squeeze())
 
     yhat = torch.cat(outputs,dim=0)
@@ -189,9 +204,7 @@ def main():
     amae = []
     asmape = []
     armse = []
-    print(yhat.shape)
     for i in range(args.seq_length):
-    
         pred = scaler.inverse_transform_3d(min_max_scaler.inverse_transform_3d(yhat[:,:,i]))
         real = realy[:,:,i]
         print("real",real.shape)
@@ -206,14 +219,11 @@ def main():
 
     log = 'On average over {} horizons, Test MAE: {:.4f}, Test SMAPE: {:.4f}, Test RMSE: {:.4f}'
     logger.info(log.format(args.seq_length, np.mean(amae),np.mean(asmape),np.mean(armse)))
-    torch.save(engine.model.state_dict(), args.save_dir+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],4))+".pth")
-    #print(yhat.transpose(1,2).unsqueeze(-1).shape)
+    torch.save(test_engine.model.state_dict(), args.save_dir+"_exp"+str(args.expid)+"_best_"+str(round(his_loss[bestid],4))+".pth")
     
-    # Recover original scaling.
     yhat= scaler.inverse_transform(min_max_scaler.inverse_transform(yhat.transpose(1,2).unsqueeze(-1)))
     # Save model outputs.
-    yhat_np = np.array(yhat.cpu().squeeze(-1).transpose(0,1)) 
-    #print(yhat_np.shape) # Convert to numpy arrray and reshape to (horizon, samples, NROIs)
+    yhat_np = np.array(yhat.cpu().squeeze(-1).transpose(0,1))  # Convert to numpy arrray and reshape to (horizon, samples, NROIs)
     realy_np = np.array(realy.cpu()).transpose(2,0,1)
     
     if args.save_predictions:
